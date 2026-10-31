@@ -81,5 +81,9 @@ This writes `evaluation-results.json` with the observed SQL execution rate, stri
 The suite is intentionally starter-level: it tests known-value question families and several ambiguity/unsafe-prompt cases on synthetic data. Add broader SQL parse equivalence, answer extraction scoring, and real SQL Server integration before using this for financial reporting.
 
 ## Screenshots
+<img width="1917" height="872" alt="Screenshot 2026-10-31 060139" src="https://github.com/user-attachments/assets/e1353f25-646c-4bca-93cd-dd995c9b7880" />
+<img width="1917" height="866" alt="Screenshot 2026-10-31 060218" src="https://github.com/user-attachments/assets/cb376ae7-c330-44cd-bfc3-676995098084" />
+<img width="1906" height="872" alt="Screenshot 2026-10-31 062219" src="https://github.com/user-attachments/assets/dc4b8576-bcb0-4885-bd0c-28797881f02b" />
 
-Launch the app and capture the dashboard at `http://localhost:8501` after loading the sample data. A generated screenshot is not checked in because it depends on local Streamlit rendering and live query results; do not treat the README mockup as an application screenshot.
+
+
