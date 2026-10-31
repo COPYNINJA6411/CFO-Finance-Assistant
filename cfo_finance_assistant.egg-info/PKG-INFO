@@ -1,0 +1,18 @@
+Metadata-Version: 2.4
+Name: cfo-finance-assistant
+Version: 1.0.0
+Summary: Guardrailed agentic text-to-SQL finance assistant
+Requires-Python: <3.14,>=3.11
+Requires-Dist: streamlit>=1.36
+Requires-Dist: pandas>=2.2
+Requires-Dist: sqlalchemy>=2.0
+Requires-Dist: pyodbc>=5.1
+Requires-Dist: pydantic>=2.8
+Requires-Dist: langgraph>=0.2
+Requires-Dist: openai>=1.40
+Requires-Dist: python-dotenv>=1.0
+Requires-Dist: plotly>=5.23
+Requires-Dist: sqlglot>=25.0
+Provides-Extra: dev
+Requires-Dist: pytest>=8.3; extra == "dev"
+Requires-Dist: pytest-cov>=5.0; extra == "dev"
