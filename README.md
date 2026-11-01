@@ -1,124 +1,73 @@
-```powershell
-Copy-Item .env.example .env
-```
+<div align="center">
 
-Set a strong local `MSSQL_SA_PASSWORD` in `.env`, then update the password in `DATABASE_URL` to match it (URL-encode reserved characters in the password). `OPENAI_API_KEY` can remain blank for the deterministic demo. Start the app and SQL Server:
+# CFO Finance Assistant
 
-```powershell
-docker compose up --build
-```
+### Agentic Text-to-SQL for finance teams
 
-Open **[http://localhost:8501](http://localhost:8501)**. To follow the app logs in another terminal:
+**Ask finance questions in plain English. Get read-only SQL, reconciled metrics, and a clear explanation grounded in reproducible data.**
 
-```powershell
-docker compose logs -f app
-```
+[![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![SQL Server](https://img.shields.io/badge/Database-SQL%20Server-CC2927?logo=microsoftsqlserver&logoColor=white)](https://www.microsoft.com/sql-server)
+[![LangGraph](https://img.shields.io/badge/Workflow-LangGraph-1C3C3C)](https://www.langchain.com/langgraph)
+[![Docker Compose](https://img.shields.io/badge/Local%20stack-Docker%20Compose-2496ED?logo=docker&logoColor=white)](https://docs.docker.com/compose/)
 
-The first SQL Server startup and data seeding can take a few minutes. Stop the stack with `Ctrl+C` or `docker compose down`; the named SQL data volume is preserved when using `down`.
+**[Try it locally](#-quick-start) · [See the workflow](#-how-it-works) · [Review evaluation](#-evaluation)**
 
-### Use a separate SQL Server
-
-Set `DATABASE_URL` in `.env` to a reachable SQL Server connection string, then seed or migrate the finance table:
-
-```powershell
-python scripts/init_db.py
-python -m streamlit run app/ui.py
-```
-
-The configured SQLAlchemy URL uses ODBC Driver 18. A suitable SQL Server ODBC driver must be installed for local Python runs.
-
-## 💱 Financial definitions
-
-| Metric | Definition |
-| --- | --- |
-| Revenue | Sum of `revenue` |
-| Cost | Sum of `cost` |
-| Gross profit | Revenue − cost |
-| Gross margin | Gross profit ÷ revenue, formatted as a percentage |
-
-For grouped results, gross margin is recomputed from the group's revenue and cost totals. Group percentages are not averaged. Fiscal periods use calendar quarters. Amounts are reported in the selected dataset's native currency.
-
-The root-cause example compares South Q2 2026 with Q1 2026 and surfaces observed revenue, cost, and product contribution changes. It describes the data evidence and does not claim that a correlation proves business causation.
-
-## 🛡️ Read-only query controls
-
-- Only a single `SELECT` against the approved `dbo.fact_finance` dataset is allowed.
-- DML/DDL statements, comments, multiple statements, system objects, and non-approved tables are rejected.
-- Queries are scoped to the selected market, capped at 500 rows, and run with configured timeouts.
-- Executed SQL is recorded in `finance_queries.log` (ignored by Git).
-- Model-generated SQL passes through the same validation and execution path as deterministic templates.
-
-These application checks are defense in depth. For any real database, use a dedicated SQL Server identity with **SELECT-only** permissions and appropriate network controls. Never point the demo at production financial data.
-
-## 🧪 Evaluation
-
-The repository includes a 40-question known-answer evaluation based on the synthetic fixture, plus ambiguous, out-of-scope, and unsafe-query checks. Run it to calculate observed execution rate, strict numeric accuracy, per-question values, and wall-clock latency:
-
-```powershell
-python -m app.evaluation
-```
-
-Results are written to `evaluation-results.json` when the command runs. The report does not include a prefilled score. Provider token usage is currently unavailable because the app does not expose token accounting from the selected API response. See [`evaluation-report.md`](evaluation-report.md) for measurement definitions and limitations.
-
-Run the unit tests with:
-
-```powershell
-python -m pytest
-```
-
-The current suite is a starter evaluation harness. Add broader SQL equivalence checks, answer extraction scoring, and SQL Server integration coverage before using the project for operational reporting.
-
-## ⚙️ Configuration
-
-`.env.example` contains safe defaults and blank API-key configuration. Keep your local `.env` private; it is excluded by `.gitignore`.
-
-| Variable | Purpose |
-| --- | --- |
-| `OPENAI_API_KEY` | Optional key for model-generated SQL. Leave blank for deterministic templates. |
-| `OPENAI_MODEL` | OpenAI model name used when model SQL generation is enabled. |
-| `DATABASE_URL` | SQL Server URL; Docker Compose supplies the SQL Server service hostname. |
-| `DEMO_MODE` | Enables the reproducible demo configuration. |
-| `MSSQL_SA_PASSWORD` | Local SQL Server container password; set a strong private value in `.env`. |
-
-## 🧰 Tech stack
-
-| Area | Tools |
-| --- | --- |
-| Agent workflow | Python, LangGraph, Pydantic |
-| SQL safety and execution | SQLGlot, SQLAlchemy, PyODBC |
-| Database | SQL Server 2022; SQLite for deterministic demo mode |
-| Interface and visualizations | Streamlit, Plotly, Pandas |
-| Model provider | OpenAI API (optional for deterministic demo) |
-| Packaging and tests | Docker Compose, Pytest |
-
-## 📁 Project structure
-
-```text
-app/                 Agent, UI, data, metrics, SQL policy, and evaluation
-scripts/             SQL Server initialization and sample-data seeding
-tests/               SQL safety and synthetic data tests
-docker-compose.yml   Local SQL Server and app services
-evaluation-report.md Measurement definitions and current status
-.env.example         Safe local configuration template
-```
-
-## ⚠️ Scope and limitations
-
-- All bundled finance records are synthetic and illustrative.
-- The two market datasets are independent samples; there is no currency conversion or FX analysis.
-- Template-driven questions cover the showcased question families. Unsupported or ambiguous questions may not produce a result.
-- Evaluation latency includes local execution and any enabled model call; it is not a production service-level measurement.
-- The project is a portfolio demonstration, not a certified financial reporting system. Validate outputs and source data before making business decisions.
+</div>
 
 ---
 
-<div align="center">
+## At a glance
 
-**CFO Finance Assistant · Agentic Text-to-SQL**
+Finance teams need answers they can inspect. This project demonstrates a guarded natural-language-to-SQL workflow over a reproducible synthetic finance dataset. It makes the generated query, returned rows, metric reconciliation, and run details visible alongside the business-friendly answer.
 
-Read-only by design. Reproducible by default. Transparent about its evidence.
+Choose the **United States · USD** or **India · INR** dataset in the sidebar. They are generated independently; INR values are not converted from USD using an assumed exchange rate.
 
-</div>
+> **Illustrative data only:** this sample is synthetic and is not company reporting or financial advice. The South region has an intentional gross-margin change in Q2 2026 to make the root-cause example repeatable.
+
+## ✨ What it demonstrates
+
+- **Ask in plain English** about revenue, cost, gross profit, gross margin, region, product, or business segment.
+- **Inspect the SQL** generated for a question and review the result rows and run metadata.
+- **Explore a dashboard** with revenue and gross-margin KPIs, trends, and regional charts.
+- **Switch between US/USD and India/INR** datasets without implying currency conversion.
+- **Trace a margin movement** using period and product-level revenue and cost comparisons.
+- **Use canonical financial definitions** so gross margin is computed from grouped totals, not by averaging percentages.
+- **Run without an API key** in deterministic demo mode; configure OpenAI to enable model-generated SQL.
+
+### Example questions
+
+- What was the gross margin by region last quarter?
+- Why did the South region's gross margin decrease?
+- Which products generated the highest revenue?
+- Compare revenue and expenses across regions.
+- What were the top-performing business segments?
+
+## 🖼️ Screenshots
+
+<table>
+  <tr>
+    <td align="center"><strong>Finance dashboard</strong><br><img src="https://github.com/user-attachments/assets/e1353f25-646c-4bca-93cd-dd995c9b7880" alt="CFO Finance Assistant screenshot" width="100%"></td>
+    <td align="center"><strong>Assistant and query results</strong><br><img src="https://github.com/user-attachments/assets/cb376ae7-c330-44cd-bfc3-676995098084" alt="CFO Finance Assistant screenshot" width="100%"></td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2"><strong>Generated SQL and run details</strong><br><img src="https://github.com/user-attachments/assets/dc4b8576-bcb0-4885-bd0c-28797881f02b" alt="CFO Finance Assistant screenshot" width="82%"></td>
+  </tr>
+</table>
+
+## 🧭 How it works
+
+```mermaid
+flowchart LR
+    U[Finance question] --> I[Understand intent and entities]
+    I --> G[Generate SQL]
+    G --> V[Validate read-only policy]
+    V --> X[Execute via SQLAlchemy]
+    X --> M[Reconcile canonical metrics]
+    M --> A[Explain results with evidence]
+    X --> L[Log executed SQL]
+    A --> UI[Streamlit results, table, and chart]
 
 ## Screenshots
 <img width="1917" height="872" alt="Screenshot 2026-10-31 060139" src="https://github.com/user-attachments/assets/e1353f25-646c-4bca-93cd-dd995c9b7880" />
