@@ -86,3 +86,9 @@ The suite is intentionally starter-level: it tests known-value question families
 <img width="1906" height="872" alt="Screenshot 2026-10-31 062219" src="https://github.com/user-attachments/assets/dc4b8576-bcb0-4885-bd0c-28797881f02b" />
 
 These screenshots were added to the GitHub repository by the project owner.
+## Screenshots
+<img width="1917" height="872" alt="Screenshot 2026-10-31 060139" src="https://github.com/user-attachments/assets/e1353f25-646c-4bca-93cd-dd995c9b7880" />
+<img width="1917" height="866" alt="Screenshot 2026-10-31 060218" src="https://github.com/user-attachments/assets/cb376ae7-c330-44cd-bfc3-676995098084" />
+<img width="1906" height="872" alt="Screenshot 2026-10-31 062219" src="https://github.com/user-attachments/assets/dc4b8576-bcb0-4885-bd0c-28797881f02b" />
+
+These screenshots were added to the GitHub repository by the project owner.
