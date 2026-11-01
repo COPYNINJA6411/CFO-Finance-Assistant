@@ -1,84 +1,124 @@
-# CFO Finance Assistant – Agentic Text-to-SQL
-
-A portfolio-ready, read-only finance analytics assistant built with Python, LangGraph, SQLAlchemy, SQL Server, OpenAI, Pydantic-ready typed state, and Streamlit. It demonstrates a guarded natural-language-to-SQL workflow, canonical finance formulas, synthetic reproducible data, query evidence, and an executable evaluation harness.
-
-> **Data note:** all included finance data is generated synthetic data. It is not company reporting. Choose either a separately generated United States dataset in USD or India dataset in INR from the sidebar. India values are generated independently; they are not converted from USD with an assumed FX rate. South has an intentionally lower gross margin in Q2 2026 so root-cause comparisons have a reproducible signal in each market.
-
-## Run locally (demo mode)
-
-Python 3.11–3.13 is supported; Python 3.12 is recommended for the smoothest Windows package installs. The deterministic demo mode uses a fresh in-memory SQLite execution target backed by the same generated sample rows; no SQL Server or API key is needed.
-
 ```powershell
-py -V:3.12 -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -e ".[dev]"
-streamlit run app/ui.py
+Copy-Item .env.example .env
 ```
 
-Open the URL Streamlit prints (normally http://localhost:8501). Configure `OPENAI_API_KEY` in `.env` to enable OpenAI SQL generation. Without it, the starter templates keep the app runnable and predictable.
-
-The landing dashboard shows the synthetic revenue trend and regional gross margin. One-click prompt chips surface the example workflows, and each answer separates results, generated SQL, and run metadata into tabs. Query history and metric definitions remain available in the sidebar.
-
-## Run SQL Server with Docker
-
-Copy `.env.example` to `.env`, set a strong `MSSQL_SA_PASSWORD`, and optionally provide an OpenAI key. Then run:
+Set a strong local `MSSQL_SA_PASSWORD` in `.env`, then update the password in `DATABASE_URL` to match it (URL-encode reserved characters in the password). `OPENAI_API_KEY` can remain blank for the deterministic demo. Start the app and SQL Server:
 
 ```powershell
 docker compose up --build
 ```
 
-The compose setup starts SQL Server 2022, seeds both market datasets once, and starts the Streamlit app:
+Open **[http://localhost:8501](http://localhost:8501)**. To follow the app logs in another terminal:
 
 ```powershell
 docker compose logs -f app
 ```
 
-Then open http://localhost:8501. The default SQLAlchemy URL in `.env.example` uses ODBC Driver 18 and certificate trust for local development. Use a dedicated SQL login with only `SELECT` on `dbo.fact_finance` outside the demo.
+The first SQL Server startup and data seeding can take a few minutes. Stop the stack with `Ctrl+C` or `docker compose down`; the named SQL data volume is preserved when using `down`.
 
-For a separately running SQL Server, run `python scripts/init_db.py` with `DATABASE_URL` set before launching the app. This applies the market/currency schema migration and adds missing sample rows for each market.
+### Use a separate SQL Server
 
-## Architecture
+Set `DATABASE_URL` in `.env` to a reachable SQL Server connection string, then seed or migrate the finance table:
 
-```mermaid
-flowchart LR
-  U[Streamlit chat] --> Q[Understand question]
-  Q --> S[Identify schema and generate SQL]
-  S --> V[Validate SELECT policy and approved dataset]
-  V --> X[SQLAlchemy query with timeout and row cap]
-  X --> R[Reconcile canonical metrics]
-  R --> A[Business answer plus rows and chart]
-  X --> L[finance_queries.log]
+```powershell
+python scripts/init_db.py
+python -m streamlit run app/ui.py
 ```
 
-The graph nodes are implemented in `app/agent.py`. SQL policy lives in `app/security.py`; shared metric semantics are in `app/metrics.py`. The sole approved relation is `dbo.fact_finance`, with market, currency, date, region, product, segment, revenue, and cost fields. Every assistant query is scoped to the selected market. The SQL Server initializer migrates an existing table with default US/USD labels and adds the India dataset without duplicating existing rows.
+The configured SQLAlchemy URL uses ODBC Driver 18. A suitable SQL Server ODBC driver must be installed for local Python runs.
 
-## Financial definitions
+## 💱 Financial definitions
 
-- Revenue = sum of revenue.
-- Cost = sum of cost.
-- Gross profit = revenue minus cost.
-- Gross margin = gross profit divided by revenue. Ratios are recalculated from grouped totals; averages of row or group margins are not used.
-- Currency is shown in the selected dataset's native units: USD for the United States, INR for India. The two sample datasets are independent; no foreign-exchange conversion is implied. Periods use calendar quarters.
+| Metric | Definition |
+| --- | --- |
+| Revenue | Sum of `revenue` |
+| Cost | Sum of `cost` |
+| Gross profit | Revenue − cost |
+| Gross margin | Gross profit ÷ revenue, formatted as a percentage |
 
-The root-cause template compares South Q2 2026 with Q1 2026 and reports actual product-level revenue, cost, and margin movements. It explicitly describes contribution evidence rather than asserting causal certainty.
+For grouped results, gross margin is recomputed from the group's revenue and cost totals. Group percentages are not averaged. Fiscal periods use calendar quarters. Amounts are reported in the selected dataset's native currency.
 
-## Safety and limitations
+The root-cause example compares South Q2 2026 with Q1 2026 and surfaces observed revenue, cost, and product contribution changes. It describes the data evidence and does not claim that a correlation proves business causation.
 
-Only a single `SELECT` using the approved fact dataset passes the policy. DML/DDL, comments, multiple statements, system objects, and other tables are blocked. SQL is logged to `finance_queries.log`; SQL Server lock and connection timeouts are configured. `TOP (500)` is added when absent. These application checks are defense in depth, not a replacement for a read-only SQL Server database identity and network controls.
+## 🛡️ Read-only query controls
 
-The demo templates cover the showcased question families. OpenAI mode asks the model for SQL but then runs it through the same guard and SQL Server execution path. The starter implementation does not infer unsupported metrics and may ask for a more specific question in a production extension. Evaluation token usage is not fabricated; provider token accounting is marked unavailable until wired to the chosen API response/accounting system.
+- Only a single `SELECT` against the approved `dbo.fact_finance` dataset is allowed.
+- DML/DDL statements, comments, multiple statements, system objects, and non-approved tables are rejected.
+- Queries are scoped to the selected market, capped at 500 rows, and run with configured timeouts.
+- Executed SQL is recorded in `finance_queries.log` (ignored by Git).
+- Model-generated SQL passes through the same validation and execution path as deterministic templates.
 
-## Evaluation
+These application checks are defense in depth. For any real database, use a dedicated SQL Server identity with **SELECT-only** permissions and appropriate network controls. Never point the demo at production financial data.
 
-See [evaluation-report.md](evaluation-report.md) for the current measurement status and definitions. Run the repeatable 40-question fixture evaluation:
+## 🧪 Evaluation
+
+The repository includes a 40-question known-answer evaluation based on the synthetic fixture, plus ambiguous, out-of-scope, and unsafe-query checks. Run it to calculate observed execution rate, strict numeric accuracy, per-question values, and wall-clock latency:
 
 ```powershell
 python -m app.evaluation
 ```
 
-This writes `evaluation-results.json` with the observed SQL execution rate, strict numeric accuracy, individual gold/observed values, and wall-clock latency. It computes results at runtime rather than claiming a pre-measured score. Extend `tests/` for SQL safety and data invariants, then run `pytest`.
+Results are written to `evaluation-results.json` when the command runs. The report does not include a prefilled score. Provider token usage is currently unavailable because the app does not expose token accounting from the selected API response. See [`evaluation-report.md`](evaluation-report.md) for measurement definitions and limitations.
 
-The suite is intentionally starter-level: it tests known-value question families and several ambiguity/unsafe-prompt cases on synthetic data. Add broader SQL parse equivalence, answer extraction scoring, and real SQL Server integration before using this for financial reporting.
+Run the unit tests with:
+
+```powershell
+python -m pytest
+```
+
+The current suite is a starter evaluation harness. Add broader SQL equivalence checks, answer extraction scoring, and SQL Server integration coverage before using the project for operational reporting.
+
+## ⚙️ Configuration
+
+`.env.example` contains safe defaults and blank API-key configuration. Keep your local `.env` private; it is excluded by `.gitignore`.
+
+| Variable | Purpose |
+| --- | --- |
+| `OPENAI_API_KEY` | Optional key for model-generated SQL. Leave blank for deterministic templates. |
+| `OPENAI_MODEL` | OpenAI model name used when model SQL generation is enabled. |
+| `DATABASE_URL` | SQL Server URL; Docker Compose supplies the SQL Server service hostname. |
+| `DEMO_MODE` | Enables the reproducible demo configuration. |
+| `MSSQL_SA_PASSWORD` | Local SQL Server container password; set a strong private value in `.env`. |
+
+## 🧰 Tech stack
+
+| Area | Tools |
+| --- | --- |
+| Agent workflow | Python, LangGraph, Pydantic |
+| SQL safety and execution | SQLGlot, SQLAlchemy, PyODBC |
+| Database | SQL Server 2022; SQLite for deterministic demo mode |
+| Interface and visualizations | Streamlit, Plotly, Pandas |
+| Model provider | OpenAI API (optional for deterministic demo) |
+| Packaging and tests | Docker Compose, Pytest |
+
+## 📁 Project structure
+
+```text
+app/                 Agent, UI, data, metrics, SQL policy, and evaluation
+scripts/             SQL Server initialization and sample-data seeding
+tests/               SQL safety and synthetic data tests
+docker-compose.yml   Local SQL Server and app services
+evaluation-report.md Measurement definitions and current status
+.env.example         Safe local configuration template
+```
+
+## ⚠️ Scope and limitations
+
+- All bundled finance records are synthetic and illustrative.
+- The two market datasets are independent samples; there is no currency conversion or FX analysis.
+- Template-driven questions cover the showcased question families. Unsupported or ambiguous questions may not produce a result.
+- Evaluation latency includes local execution and any enabled model call; it is not a production service-level measurement.
+- The project is a portfolio demonstration, not a certified financial reporting system. Validate outputs and source data before making business decisions.
+
+---
+
+<div align="center">
+
+**CFO Finance Assistant · Agentic Text-to-SQL**
+
+Read-only by design. Reproducible by default. Transparent about its evidence.
+
+</div>
 
 ## Screenshots
 <img width="1917" height="872" alt="Screenshot 2026-10-31 060139" src="https://github.com/user-attachments/assets/e1353f25-646c-4bca-93cd-dd995c9b7880" />
